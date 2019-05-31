@@ -5,3 +5,69 @@ RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^.*$ - [NC,L]
 
 RewriteRule ^(.*) /index.html [NC,L]
+
+# Disallow access to empty folders with no index file
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+
+# Disallow access to all hidden files and folders except for .well-known
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} "!(^|/)\.well-known/([^./]+./?)+$" [NC]
+    RewriteCond %{SCRIPT_FILENAME} -d [OR]
+    RewriteCond %{SCRIPT_FILENAME} -f
+    RewriteRule "(^|/)\." - [F]
+</IfModule>
+
+# Force cookie and session duration to be 20 hours
+<IfModule mod_php5.c>
+    #Session timeout
+    php_value session.cookie_lifetime 1200
+    php_value session.gc_maxlifetime 1200
+</IfModule>
+
+<IfModule mod_php7.c>
+    #Session timeout
+    php_value session.cookie_lifetime 1200
+    php_value session.gc_maxlifetime 1200
+</IfModule>
+
+# Reduce payload for all supported file types in gzip
+<IfModule mod_gzip.c>
+mod_gzip_on Yes
+mod_gzip_dechunk Yes
+mod_gzip_item_include file .(html?|txt|css|js|php|pl)$
+mod_gzip_item_include handler ^cgi-script$
+mod_gzip_item_include mime ^text/.*
+mod_gzip_item_include mime ^application/x-javascript.*
+mod_gzip_item_exclude mime ^image/.*
+mod_gzip_item_exclude rspheader ^Content-Encoding:.*gzip.*
+</IfModule>
+
+<IfModule mod_headers.c>
+
+# Forces a client to make all requests using https
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" "expr=%{HTTPS} == 'on'"
+
+# Forces the security policies to the maximum level of protection by preventing resources to be loaded only from this subdomain
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self'; font-src https://fonts.gstatic.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.gstatic.com https://fonts.googleapis.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" "expr=%{CONTENT_TYPE} =~ m#text/html#i"
+
+# Prevents the webpage to be served inside any kind of frames
+    Header set X-Frame-Options "DENY" "expr=%{CONTENT_TYPE} =~ m#text/html#i"
+
+# Tries to enable the XSS filter from the client in case it has been disabled
+    Header set X-XSS-Protection "1; mode=block" "expr=%{CONTENT_TYPE} =~ m#text/html#i"
+
+# Prevents client to know the MIME type of the response until it has arrived
+    Header set X-Content-Type-Options "nosniff"
+
+# Prevents the browser to serve http contents on a https connection
+    Header set Referrer-Policy "no-referrer-when-downgrade" "expr=%{CONTENT_TYPE} =~ m#text/html#i"
+
+# Disables all features to prevent any attacks on the site to use them
+    Header set Feature-Policy "geolocation 'none'; midi 'none'; sync-xhr 'self'; microphone 'none'; camera 'none'; magnetometer 'none'; gyroscope 'none'; speaker 'none'; fullscreen 'self'; payment 'none'"
+</IfModule>
+
+# Renames the header that indicates we are using Apache
+    ServerSignature Off
